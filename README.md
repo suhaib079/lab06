@@ -41,3 +41,20 @@ Finish time: 4:05pm
 Actual time needed to complete: 5 minutes
 
 21-02-2021 4:05pm - Application now has a fully-functional express server, with a GET route for the location resource.
+
+
+
+
+//lab 07//
+
+City Explorer
+Author: suhaib
+Version: 1.0.0 (increment the patch/fix version number if you make more commits past your first submission)
+
+Overview
+So far this application will provide for you a map for any city in the world and the weather condition also if there is any parks available.
+
+Getting Started
+Architecture
+Express , cors , dotenv .
+
