@@ -3,21 +3,30 @@
 const express = require('express');
 const server = express();
 
+ const pg =require('pg');
+ const client =new pg.Client(process.env.DATABASE_URL);
+ 
 
 require('dotenv').config();
 const cors = require('cors');
 const superagent =require('superagent');
 const superAgent0 =require('superagent');
 
+// databace//
 
 
 const PORT =process.env.PORT || 3000;
 
 server.use(cors());
 
-server.listen(PORT, () =>{
-     console.log('hi '+ PORT);
-})
+
+
+client.connect().then(()=> {
+  server.listen(PORT, () =>{
+       console.log('hi '+ PORT);
+  })
+
+});
 
 
 
@@ -43,20 +52,66 @@ function X(cityName ,locData){
 
 function loctionHandler(req,res){
   const  cityName = req.query.city;
-  // console.log(req.query);
-  // console.log(city);
-  let key = process.env.LOCATION_KEY;
-  let url =`https://us1.locationiq.com/v1/search.php?key=${key}&q=${cityName}&format=json`;
-
-
-superagent.get(url)
-.then(locdata =>{
-
-    let locObj  = new X(cityName,locdata.body[0]);
+   console.log(req.query);
+   let SQL = 'SELECT search_query FROM locations;';
+   let dbvl =[];
+   lrt citys=[];
+   client.query(SQL).then(dats => {
+    let dbvl = dats.rows;
+    citys =dbvl.map(element => {
+      return element.search_query; 
+    });
+    
+   })
+    // console.log(city);
+    let key = process.env.LOCATION_KEY;
+    let url =`https://us1.locationiq.com/v1/search.php?key=${key}&q=${cityName}&format=json`
+    superagent.get(url).then(locdata =>{
+      let locObj  = new X(cityName,locdata.body[0]);
+      let sql =`INSERT INTO locations (search_query,formatted_query,latitude,longitude) VALUES ($1,$2,$3,$4) RETURNING *;`;
+      let saveVal=[locObj.search_query,locObj.formatted_query,locObj.latitude,locObj.longitude];
+      client.query(sql,saveVal).then(result=> {
+        res.send(result.rows)
+        
+       });
        res.send(locObj)
+//data bace//
+
 
     
-  // console.log(locdata)
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 })
   
 }
