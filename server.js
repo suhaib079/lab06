@@ -54,67 +54,60 @@ function loctionHandler(req,res){
   const  cityName = req.query.city;
    console.log(req.query);
    let SQL = 'SELECT search_query FROM locations;';
-   let dbvl =[];
-   lrt citys=[];
+   let valuFROMsql =[];
+   let cityss=[];
+
+
    client.query(SQL).then(dats => {
-    let dbvl = dats.rows;
-    citys =dbvl.map(element => {
+     valuFROMsql = dats.rows;
+    cityss =valuFROMsql.map(element => {
       return element.search_query; 
     });
     
-   })
-    // console.log(city);
+   if(!cityss.includes(cityName)){
     let key = process.env.LOCATION_KEY;
+   
     let url =`https://us1.locationiq.com/v1/search.php?key=${key}&q=${cityName}&format=json`
-    superagent.get(url).then(locdata =>{
-      let locObj  = new X(cityName,locdata.body[0]);
-      let sql =`INSERT INTO locations (search_query,formatted_query,latitude,longitude) VALUES ($1,$2,$3,$4) RETURNING *;`;
-      let saveVal=[locObj.search_query,locObj.formatted_query,locObj.latitude,locObj.longitude];
-      client.query(sql,saveVal).then(result=> {
-        res.send(result.rows)
-        
-       });
-       res.send(locObj)
-//data bace//
-
-
-    
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-})
   
+    
+    superagent.get(url).then(info =>{
+      let locObj  = new X(cityName,info.body[0]);
+      let SQL = 'INSERT INTO locations (search_query,formatted_query,latitude,longitude) VALUES ($1,$2,$3,$4) RETURNING *;';
+      let saveVal=[locObj.search_query,locObj.formatted_query,locObj.latitude,locObj.longitude];
+
+      client.query(SQL,saveVal).then(result=> {
+        res.send(result.rows);
+        
+      });
+
+      console.log('from API');
+      response.send(locObj);
+    });
+  } else {
+    let SQL = `SELECT * FROM locations WHERE search_query = '${cityName}';`;
+    client.query(SQL)
+      .then(result=>{
+        console.log('from dataBase');
+        response.send(result.rows[0]);
+      });
+  }
+});
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 //weather 
@@ -129,10 +122,10 @@ function Weather(datawith){
 
 function weatherHandler(req,res){
   const  weatherKey = process.env.weatherKey;
-  const cityName = req.query.search_query;
+  const cityName = req.query.city;
   let url =`https://api.weatherbit.io/v2.0/forecast/daily?city=${cityName}&key=${weatherKey}`
 
-
+console.log(req.query);
   superagent.get(url).then(weatherData =>{
     let weatherdata12=weatherData.body.data.map(element => {
       let withobj  = new Weather(element);
