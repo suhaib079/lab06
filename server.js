@@ -182,4 +182,68 @@ server.use('*',(req,res)=>{
   });
 
 
+  // movies// 
   
+  server.get('/movies', moviehandler );
+
+  function Movie (mdata){
+  this.title =mdata.title;
+  this.overview = mdata.overview;
+  this.average_votes=mdata.average_votes;
+  this.total_votes = mdata.vote_count;
+  this.image_url =`https://image.tmdb.org/t/p/w500${mdata.poster_path}`;
+  this.popularity = mdata.popularity;
+  this.released_on = mdata.release_date;
+  }
+
+  function moviehandler(req,res){
+  const cityName =req.query.search_query;
+  let key3 = process.env.MOVIES_KEY;
+  let url =`https://api.themoviedb.org/3/movie/550?api_key=${key3}&query=${cityName}`;
+   superagent.get(url).then(moviedata => {
+    let moviesObjArr = moviedata.body.results.map(value => {
+      return new Movies(value)
+   })
+   res.send(moviesObjArr)
+  })
+  }
+
+
+
+  // yelp//
+
+  server.get('/yelp', yelpHandler);
+
+
+
+  function Yelp(yelpData) {
+    this.name = yelpData.name;
+    this.image_url = yelpData.image_url;
+    this.price = yelpData.price;
+    this.rating = yelpData.rating;
+    this.url = yelpData.url;
+};
+
+function yelpHandler(req, res) {
+  let cityName = req.query.search_query;
+  let page = req.query.page;
+  const limts = 5;
+  const start = ((page - 1) * limts + 1)
+  let key4 = process.env.YELP_KEY;
+  let url = `https://api.yelp.com/v3/businesses/search?location=${cityName}&limit=${limitNum}&offset=${start}`
+
+  let yelpRest = axios.create({
+      baseURL: "https://api.yelp.com/v3/",
+      headers: {
+          Authorization: `Bearer ${key4}`,
+          "Content-type": "application/json",
+      },
+  })
+  yelpRest(url)
+      .then(({ data }) => {
+          let yelpobj = data.businesses.map(value => {
+              return new Yelp(value)
+          })
+          res.send(yelpobj)
+      })
+}
