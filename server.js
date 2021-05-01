@@ -1,5 +1,6 @@
 'use strict';
 //setup//
+
 const express = require('express');
 const server = express();
 
@@ -9,11 +10,9 @@ const server = express();
 
 require('dotenv').config();
 const cors = require('cors');
+
 const superagent =require('superagent');
 const superAgent0 =require('superagent');
-
-// databace//
-
 
 const PORT =process.env.PORT || 3000;
 
@@ -36,7 +35,8 @@ server.get('/data',(req,res)=>{
     res.send('what i see on web ');
 })
 
-//loction 
+
+////////////////////////////////////loction////////////////////////////// 
 server.get('/location',loctionHandler);
 
 function X(cityName ,locData){
@@ -52,65 +52,45 @@ function X(cityName ,locData){
 
 function loctionHandler(req,res){
   const  cityName = req.query.city;
-   console.log(req.query);
-   let SQL = 'SELECT search_query FROM locations;';
+  let key = process.env.LOCATION_KEY;
+  let url =`https://us1.locationiq.com/v1/search.php?key=${key}&q=${cityName}&format=json`
+  
+   let SQL = 'SELECT * FROM locations where search_query=$1;';
    let valuFROMsql =[];
    let cityss=[];
 
 
-   client.query(SQL).then(dats => {
-     valuFROMsql = dats.rows;
-    cityss =valuFROMsql.map(element => {
-      return element.search_query; 
+   client.query(SQL,[cityName]).then(dats => {
+     if(data.rowCount>0){
+       res.send(data.rows[0]);
+     } else {
+       superagent.get(url).then(getdata => {
+         let getData= getdata.body;
+         let locObj  = new X(cityName,getData);
+
+        let search_query = cityName;
+         let formatted_query= getData[0].display_name;
+         let latitude = getData[0].lat;
+         let longitude = getData[0].lon;
+
+         let SQL = 'INSERT INTO locations (search_query,formatted_query,latitude,longitude) VALUES ($1,$2,$3,$4) RETURNING *;';
+         let saveVal=[search_query,formatted_query,latitude,longitude];
+         client.query(SQL,saveVal);
+         res.send(locObj);
+       })
+
+       .catch(error => {
+         res.send(error)
+       });
+     }
     });
-    
-   if(!cityss.includes(cityName)){
-    let key = process.env.LOCATION_KEY;
-   
-    let url =`https://us1.locationiq.com/v1/search.php?key=${key}&q=${cityName}&format=json`
-  
-    
-    superagent.get(url).then(info =>{
-      let locObj  = new X(cityName,info.body[0]);
-      let SQL = 'INSERT INTO locations (search_query,formatted_query,latitude,longitude) VALUES ($1,$2,$3,$4) RETURNING *;';
-      let saveVal=[locObj.search_query,locObj.formatted_query,locObj.latitude,locObj.longitude];
-
-      client.query(SQL,saveVal).then(result=> {
-        res.send(result.rows);
-        
-      });
-
-      console.log('from API');
-      response.send(locObj);
-    });
-  } else {
-    let SQL = `SELECT * FROM locations WHERE search_query = '${cityName}';`;
-    client.query(SQL)
-      .then(result=>{
-        console.log('from dataBase');
-        response.send(result.rows[0]);
-      });
-  }
-});
-}
+  };
+     
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-//weather 
+//////////////////////////////////////////////////////////weather//////////////////////////////////////////// 
 
 server.get('/weather',weatherHandler);
 
@@ -138,7 +118,7 @@ console.log(req.query);
   
 };
 
-
+////////////////////////////////////////////parks///////////////////////////////
 
 server.get('/parks', handlePark );
 
@@ -210,7 +190,7 @@ server.use('*',(req,res)=>{
 
 
 
-  // yelp//
+  ///////////////////////////////////////////////// yelp//////////////////////////////////////////
 
   server.get('/yelp', yelpHandler);
 
