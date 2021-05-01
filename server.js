@@ -1,23 +1,31 @@
 'use strict';
 //setup//
+
 const express = require('express');
 const server = express();
 
+ const pg =require('pg');
+ const client =new pg.Client(process.env.DATABASE_URL);
+ 
 
 require('dotenv').config();
 const cors = require('cors');
+
 const superagent =require('superagent');
 const superAgent0 =require('superagent');
-
-
 
 const PORT =process.env.PORT || 3000;
 
 server.use(cors());
 
-server.listen(PORT, () =>{
-     console.log('hi '+ PORT);
-})
+
+
+client.connect().then(()=> {
+  server.listen(PORT, () =>{
+       console.log('hi '+ PORT);
+  })
+
+});
 
 
 
@@ -27,7 +35,8 @@ server.get('/data',(req,res)=>{
     res.send('what i see on web ');
 })
 
-//loction 
+
+////////////////////////////////////loction////////////////////////////// 
 server.get('/location',loctionHandler);
 
 function X(cityName ,locData){
@@ -43,26 +52,45 @@ function X(cityName ,locData){
 
 function loctionHandler(req,res){
   const  cityName = req.query.city;
-  // console.log(req.query);
-  // console.log(city);
   let key = process.env.LOCATION_KEY;
-  let url =`https://us1.locationiq.com/v1/search.php?key=${key}&q=${cityName}&format=json`;
-
-
-superagent.get(url)
-.then(locdata =>{
-
-    let locObj  = new X(cityName,locdata.body[0]);
-       res.send(locObj)
-
-    
-  // console.log(locdata)
-})
+  let url =`https://us1.locationiq.com/v1/search.php?key=${key}&q=${cityName}&format=json`
   
-}
+   let SQL = 'SELECT * FROM locations where search_query=$1;';
+   let valuFROMsql =[];
+   let cityss=[];
 
 
-//weather 
+   client.query(SQL,[cityName]).then(dats => {
+     if(data.rowCount>0){
+       res.send(data.rows[0]);
+     } else {
+       superagent.get(url).then(getdata => {
+         let getData= getdata.body;
+         let locObj  = new X(cityName,getData);
+
+        let search_query = cityName;
+         let formatted_query= getData[0].display_name;
+         let latitude = getData[0].lat;
+         let longitude = getData[0].lon;
+
+         let SQL = 'INSERT INTO locations (search_query,formatted_query,latitude,longitude) VALUES ($1,$2,$3,$4) RETURNING *;';
+         let saveVal=[search_query,formatted_query,latitude,longitude];
+         client.query(SQL,saveVal);
+         res.send(locObj);
+       })
+
+       .catch(error => {
+         res.send(error)
+       });
+     }
+    });
+  };
+     
+
+
+
+
+//////////////////////////////////////////////////////////weather//////////////////////////////////////////// 
 
 server.get('/weather',weatherHandler);
 
@@ -74,10 +102,10 @@ function Weather(datawith){
 
 function weatherHandler(req,res){
   const  weatherKey = process.env.weatherKey;
-  const cityName = req.query.search_query;
+  const cityName = req.query.city;
   let url =`https://api.weatherbit.io/v2.0/forecast/daily?city=${cityName}&key=${weatherKey}`
 
-
+console.log(req.query);
   superagent.get(url).then(weatherData =>{
     let weatherdata12=weatherData.body.data.map(element => {
       let withobj  = new Weather(element);
@@ -90,7 +118,7 @@ function weatherHandler(req,res){
   
 };
 
-
+////////////////////////////////////////////parks///////////////////////////////
 
 server.get('/parks', handlePark );
 
@@ -134,4 +162,68 @@ server.use('*',(req,res)=>{
   });
 
 
+  // movies// 
   
+  server.get('/movies', moviehandler );
+
+  function Movie (mdata){
+  this.title =mdata.title;
+  this.overview = mdata.overview;
+  this.average_votes=mdata.average_votes;
+  this.total_votes = mdata.vote_count;
+  this.image_url =`https://image.tmdb.org/t/p/w500${mdata.poster_path}`;
+  this.popularity = mdata.popularity;
+  this.released_on = mdata.release_date;
+  }
+
+  function moviehandler(req,res){
+  const cityName =req.query.search_query;
+  let key3 = process.env.MOVIES_KEY;
+  let url =`https://api.themoviedb.org/3/movie/550?api_key=${key3}&query=${cityName}`;
+   superagent.get(url).then(moviedata => {
+    let moviesObjArr = moviedata.body.results.map(value => {
+      return new Movies(value)
+   })
+   res.send(moviesObjArr)
+  })
+  }
+
+
+
+  ///////////////////////////////////////////////// yelp//////////////////////////////////////////
+
+  server.get('/yelp', yelpHandler);
+
+
+
+  function Yelp(yelpData) {
+    this.name = yelpData.name;
+    this.image_url = yelpData.image_url;
+    this.price = yelpData.price;
+    this.rating = yelpData.rating;
+    this.url = yelpData.url;
+};
+
+function yelpHandler(req, res) {
+  let cityName = req.query.search_query;
+  let page = req.query.page;
+  const limts = 5;
+  const start = ((page - 1) * limts + 1)
+  let key4 = process.env.YELP_KEY;
+  let url = `https://api.yelp.com/v3/businesses/search?location=${cityName}&limit=${limitNum}&offset=${start}`
+
+  let yelpRest = axios.create({
+      baseURL: "https://api.yelp.com/v3/",
+      headers: {
+          Authorization: `Bearer ${key4}`,
+          "Content-type": "application/json",
+      },
+  })
+  yelpRest(url)
+      .then(({ data }) => {
+          let yelpobj = data.businesses.map(value => {
+              return new Yelp(value)
+          })
+          res.send(yelpobj)
+      })
+}
